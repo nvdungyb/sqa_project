@@ -1,0 +1,134 @@
+package com.java.be_ticket_booking.response;
+
+import com.java.be_ticket_booking.model.Comment;
+import com.java.be_ticket_booking.model.Genre;
+import com.java.be_ticket_booking.model.Movie;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MovieInfoResponse {
+    private Long id;
+    private String title;
+    private String description;
+    private int durationInMins;
+    private String language;
+    private String releaseDate;
+    private String country;
+    private String image;
+    private String large_image;
+    private String trailer;
+    private String actors;
+    private List<Genre> genres;
+    private List<CommentResponse> comments;
+
+    public MovieInfoResponse(Movie m) {
+        this.id = m.getId();
+        this.title = m.getTitle();
+        this.description = m.getDescription();
+        this.language = m.getLanguage();
+        this.releaseDate = m.getReleaseDate();
+        this.country = m.getCountry();
+        this.trailer = m.getTrailer();
+        this.actors = m.getActors();
+        this.image = m.getImage();
+        this.large_image = m.getLargeImage();
+        this.genres = m.getGenres();
+        this.durationInMins = m.getDurationInMins();
+        this.comments = this.convertType(m.getComments());
+    }
+
+    public MovieInfoResponse(Long id, String title, String image, String large_image, List<Genre> genre, int durationInMins, List<Comment> comment) {
+        this.id = id;
+        this.title = title;
+        this.image = image;
+        this.large_image = large_image;
+        this.genres = genre;
+        this.durationInMins = durationInMins;
+        this.comments = this.convertType(comment);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getDescription() {
+        return this.description;
+    }
+
+    public String getLanguage() {
+        return this.language;
+    }
+
+    public String getreleaseDate() {
+        return this.releaseDate;
+    }
+
+    public String getCountry() {
+        return this.country;
+    }
+
+    public String getTrailer() {
+        return this.trailer;
+    }
+
+    public String getActors() {
+        return this.actors;
+    }
+
+    public String getImage() {
+        return this.image;
+    }
+
+    public String getLargeImage() {
+        return this.large_image;
+    }
+
+    public List<Genre> getGenres() {
+        return this.genres;
+    }
+
+    public int getDurationInMins() {
+        return durationInMins;
+    }
+
+    public List<CommentResponse> getComments() {
+        return this.comments;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+
+    public void setLargeImage(String image) {
+        this.large_image = image;
+    }
+
+    public void setGenre(List<Genre> genre) {
+        this.genres = genre;
+    }
+
+    public void setDurationInMins(int durationInMins) {
+        this.durationInMins = durationInMins;
+    }
+
+    private List<CommentResponse> convertType(List<Comment> comments) {
+        List<CommentResponse> data = new ArrayList<CommentResponse>();
+        for (Comment c : comments)
+            data.add(new CommentResponse(c));
+        return data;
+    }
+
+}
