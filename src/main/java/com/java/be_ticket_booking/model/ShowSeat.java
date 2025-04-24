@@ -2,18 +2,21 @@ package com.java.be_ticket_booking.model;
 
 import com.java.be_ticket_booking.model.enumModel.ESeatStatus;
 import jakarta.persistence.*;
+import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "ShowSeat")
+@Data
 public class ShowSeat {
 	@Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+//    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 
     @ManyToOne
@@ -72,5 +75,12 @@ public class ShowSeat {
 
     public void setStatus(ESeatStatus status) {
         this.status = status;
+    }
+
+    @PrePersist
+    public void assignUUID() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
     }
 }

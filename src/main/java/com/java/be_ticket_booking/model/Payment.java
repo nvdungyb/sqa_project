@@ -6,14 +6,15 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Payment")
 public class Payment {
 	
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
-	@Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+//	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 	
 	@OneToOne
@@ -89,5 +90,12 @@ public class Payment {
 	
 	public void returnPayment() {
 		this.status = PaymentStatus.RETURNED;
+	}
+
+	@PrePersist
+	public void assignUUID() {
+		if (this.id == null) {
+			this.id = UUID.randomUUID().toString();
+		}
 	}
 }

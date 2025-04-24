@@ -5,13 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "Token")
 public class JWTToken {
 	
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
-	@Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+//	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 	
 	@OneToOne
@@ -66,6 +68,13 @@ public class JWTToken {
 	
 	public void setRefreshToken(String token) {
 		this.refreshToken = token;
+	}
+
+	@PrePersist
+	public void assignUUID() {
+		if (this.id == null) {
+			this.id = UUID.randomUUID().toString();
+		}
 	}
 }
 

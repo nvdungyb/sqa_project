@@ -9,14 +9,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Booking")
 public class Booking {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+//    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 
     @ManyToOne
@@ -131,6 +132,17 @@ public class Booking {
         for (ShowSeat seat : this.seats)
             res += seat.getCinemaSeat().getPrice();
         return res;
+    }
+
+    public void setCreateAt(Date from) {
+        this.create_at = from;
+    }
+
+    @PrePersist
+    public void assignUUID() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
     }
 }
 

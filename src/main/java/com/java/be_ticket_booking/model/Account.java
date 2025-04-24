@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
@@ -14,18 +15,20 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "Account", uniqueConstraints = {@UniqueConstraint(columnNames = {"username", "email"})
 })
+@Data
 public class Account implements UserDetails {
 
     private static final long serialVersionUID = -7242669578209869683L;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+//    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 
     @NotBlank
@@ -228,6 +231,13 @@ public class Account implements UserDetails {
     @Override
     public boolean isEnabled() {
         return true;
+    }
+
+    @PrePersist
+    public void assignUUID() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
     }
 
 }

@@ -3,19 +3,21 @@ package com.java.be_ticket_booking.model;
 import com.java.be_ticket_booking.utils.DateUtils;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "CinemaShow")
+@Data
 public class CinemaShow {
-	@Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+    @Id
+//    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 
     @ManyToOne
@@ -23,23 +25,24 @@ public class CinemaShow {
 
     @ManyToOne
     private Movie movie;
-    
+
     @Column(name = "start_time")
     @NotNull
     private LocalDateTime startTime;
-    
+
     @Column(name = "end_time")
     private LocalDateTime endTime;
-    
-    @CreationTimestamp
-	@Column(name = "create_at", nullable = false, updatable = false)
-	private Date create_at;
-	
-	@UpdateTimestamp
-	@Column(name = "update_at", nullable = true, updatable = true)
-	private Date update_at;
 
-    public CinemaShow() {}
+    @CreationTimestamp
+    @Column(name = "create_at", nullable = false, updatable = false)
+    private Date create_at;
+
+    @UpdateTimestamp
+    @Column(name = "update_at", nullable = true, updatable = true)
+    private Date update_at;
+
+    public CinemaShow() {
+    }
 
     public CinemaShow(CinemaHall cinemaHall, Movie movie, LocalDateTime startTime, LocalDateTime endTime) {
         this.cinemaHall = cinemaHall;
@@ -48,15 +51,16 @@ public class CinemaShow {
         this.endTime = endTime;
 //        this.endTime = startTime.plusMinutes(movie.getDurationInMins()).plusMinutes(10);
     }
-    
+
     public CinemaShow(CinemaHall cinemaHall, Movie movie, String startTimeString) {
-    	this.cinemaHall = cinemaHall;
+        this.cinemaHall = cinemaHall;
         this.movie = movie;
-        this.startTime = DateUtils.convertStringDateToDate(startTimeString, "dd/MM/yyyy HH:mm");;
+        this.startTime = DateUtils.convertStringDateToDate(startTimeString, "dd/MM/yyyy HH:mm");
+        ;
         this.endTime = startTime.plusMinutes(movie.getDurationInMins()).plusMinutes(10);
     }
 
-	public String getId() {
+    public String getId() {
         return id;
     }
 
@@ -95,12 +99,19 @@ public class CinemaShow {
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
     }
-    
+
     public Date getCreateAt() {
-    	return this.create_at;
+        return this.create_at;
     }
-    
+
     public Date getUpdateAt() {
-    	return this.update_at;
+        return this.update_at;
+    }
+
+    @PrePersist
+    public void assignUUID() {
+        if (this.id == null) {
+            this.id = UUID.randomUUID().toString();
+        }
     }
 }

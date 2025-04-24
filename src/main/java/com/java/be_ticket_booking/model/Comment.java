@@ -8,14 +8,15 @@ import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
 @Table(name = "Comment")
 public class Comment {
 	
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
-	@Column(name = "id", unique = true, nullable = false, length = 26, insertable = false)
+//	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "id", unique = true, nullable = false, length = 36, insertable = false)
     private String id;
 	
 	@CreationTimestamp
@@ -124,5 +125,12 @@ public class Comment {
 	
 	public Date getCreateAt() {
 		return this.create_at;
+	}
+
+	@PrePersist
+	public void assignUUID() {
+		if (this.id == null) {
+			this.id = UUID.randomUUID().toString();
+		}
 	}
 }
