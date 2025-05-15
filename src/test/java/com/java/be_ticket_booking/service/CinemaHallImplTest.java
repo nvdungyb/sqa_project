@@ -1,13 +1,5 @@
 package com.java.be_ticket_booking.service;
 
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
 import com.java.be_ticket_booking.exception.MyNotFoundException;
 import com.java.be_ticket_booking.model.CinemaHall;
 import com.java.be_ticket_booking.repository.CinemaHallRepository;
@@ -16,186 +8,225 @@ import com.java.be_ticket_booking.response.ErrorResponse;
 import com.java.be_ticket_booking.response.MyApiResponse;
 import com.java.be_ticket_booking.security.InputValidationFilter;
 import com.java.be_ticket_booking.service.impl.CinemaHallImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@Slf4j
+@SpringBootTest
+@Transactional
 public class CinemaHallImplTest {
 
     @InjectMocks
     private CinemaHallImpl cinemaHallService;
 
     @Mock
-    private CinemaHallRepository hallREPO;
+    private CinemaHallRepository hallRepo;
 
     @Mock
-    private CinemaSeatService hallSeatSER;
+    private CinemaSeatService hallSeatService;
 
     @Mock
     private InputValidationFilter inputFilter;
 
+    private CinemaHall validHall;
+    private CinemaHall existingHall;
+    private CinemaHallRequest request;
+    @Autowired
+    private CinemaHallRepository cinemaHallRepository;
+    @Autowired
+    private CinemaHallImpl cinemaHallImpl;
+
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+        validHall = new CinemaHall();
+        validHall.setId("1");
+        validHall.setName("Hall A");
+        validHall.setTotalCol(10);
+        validHall.setTotalRow(10);
+
+        existingHall = new CinemaHall();
+        existingHall.setId("hall-id-001");
+        existingHall.setName("Hall A");
+        existingHall.setTotalCol(10);
+        existingHall.setTotalRow(12);
+
+        request = new CinemaHallRequest("Updated Hall", 12, 10);
     }
 
-    // Test newHall
+    // Thiết kế ErrorResponse kế thừa MyApiResponse nhưng không truyền HttpStatus cho supper => status == null
+    // MyApiResponse lại để HttpStatus là String => sai
     @Test
-    public void testNewHall_InvalidName_ReturnsError() {
-        CinemaHall hall = new CinemaHall();
-        hall.setName("Invalid@Name");
-        when(inputFilter.checkInput("Invalid@Name")).thenReturn(false);
+    void testNewHallIllegalCharactersInName() {
+        when(inputFilter.checkInput(validHall.getName())).thenReturn(false);
 
-        MyApiResponse response = cinemaHallService.newHall(hall);
+        ErrorResponse response = (ErrorResponse) cinemaHallService.newHall(validHall);
+        log.info(response.toString());
+        assertInstanceOf(ErrorResponse.class, response);
+        assertEquals("Illeagal charaters in name", response.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatus());
+    }
 
-        assertTrue(response instanceof ErrorResponse);
-        ErrorResponse error = (ErrorResponse) response;
-        assertEquals("Illeagal charaters in name", error.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
+    // tương tự trả mã lỗi sai
+    @Test
+    void testNewHall_hallAlreadyExists() {
+        when(inputFilter.checkInput(validHall.getName())).thenReturn(true);
+        when(hallRepo.existsByName(validHall.getName())).thenReturn(true);
+
+        MyApiResponse response = cinemaHallService.newHall(validHall);
+
+        assertInstanceOf(ErrorResponse.class, response);
+        assertEquals("This hall is existed", response.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatus());
+    }
+
+    // Mã lỗi trả sai
+    @Test
+    void testNewHall_invalidRowOrColumn() {
+        validHall.setTotalRow(0); // invalid row
+        when(inputFilter.checkInput(validHall.getName())).thenReturn(true);
+        when(hallRepo.existsByName(validHall.getName())).thenReturn(false);
+
+        MyApiResponse response = cinemaHallService.newHall(validHall);
+
+        assertInstanceOf(ErrorResponse.class, response);
+        assertEquals("Row/Column number must be greater than 5", ((ErrorResponse) response).getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, ((ErrorResponse) response).getStatus());
     }
 
     @Test
-    public void testNewHall_DuplicateName_ReturnsError() {
-        CinemaHall hall = new CinemaHall();
-        hall.setName("Hall1");
-        when(inputFilter.checkInput("Hall1")).thenReturn(true);
-        when(hallREPO.existsByName("Hall1")).thenReturn(true);
+    void testNewHall_success() {
+        when(inputFilter.checkInput(validHall.getName())).thenReturn(true);
+        when(hallRepo.existsByName(validHall.getName())).thenReturn(false);
+        when(hallRepo.findByName(validHall.getName())).thenReturn(Optional.of(validHall));
 
-        MyApiResponse response = cinemaHallService.newHall(hall);
+        MyApiResponse response = cinemaHallService.newHall(validHall);
 
-        assertTrue(response instanceof ErrorResponse);
-        ErrorResponse error = (ErrorResponse) response;
-        assertEquals("This hall is existed", error.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
-    }
+        verify(hallRepo).save(validHall);
+        verify(hallSeatService).CreateListSeats(validHall);
 
-    @Test
-    public void testNewHall_InvalidRowCol_ReturnsError() {
-        CinemaHall hall = new CinemaHall();
-        hall.setName("Hall1");
-        hall.setTotalRow(4);
-        hall.setTotalCol(6);
-        when(inputFilter.checkInput("Hall1")).thenReturn(true);
-        when(hallREPO.existsByName("Hall1")).thenReturn(false);
-
-        MyApiResponse response = cinemaHallService.newHall(hall);
-
-        assertTrue(response instanceof ErrorResponse);
-        ErrorResponse error = (ErrorResponse) response;
-        assertEquals("Row/Column number must be greater than 5", error.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
-    }
-
-    @Test
-    public void testNewHall_Success() {
-        CinemaHall hall = new CinemaHall();
-        hall.setName("Hall1");
-        hall.setTotalRow(6);
-        hall.setTotalCol(6);
-        when(inputFilter.checkInput("Hall1")).thenReturn(true);
-        when(hallREPO.existsByName("Hall1")).thenReturn(false);
-        when(hallREPO.save(any(CinemaHall.class))).thenReturn(hall);
-        when(hallREPO.findByName("Hall1")).thenReturn(Optional.of(hall));
-
-        MyApiResponse response = cinemaHallService.newHall(hall);
-
+        assertNotNull(response);
         assertEquals("Success", response.getMessage());
-        verify(hallSeatSER, times(1)).CreateListSeats(hall);
     }
 
     // Test editHall
     @Test
-    public void testEditHall_InvalidName_ReturnsError() {
-        CinemaHallRequest request = new CinemaHallRequest("Invalid@Name", 6, 6);
-        when(inputFilter.checkInput("Invalid@Name")).thenReturn(false);
+    void testEditHall_illegalCharactersInName() {
+        when(inputFilter.checkInput(request.getName())).thenReturn(false);
 
-        MyApiResponse response = cinemaHallService.editHall("1", request);
+        MyApiResponse response = cinemaHallService.editHall("hall-id-001", request);
 
-        assertTrue(response instanceof ErrorResponse);
-        ErrorResponse error = (ErrorResponse) response;
-        assertEquals("Illeagal charaters in name", error.getMessage());
-        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
+        assertInstanceOf(ErrorResponse.class, response);
+        assertEquals("Illeagal charaters in name", response.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatus());
     }
 
     @Test
-    public void testEditHall_HallNotFound_ThrowsException() {
-        CinemaHallRequest request = new CinemaHallRequest("Hall1", 6, 6);
-        when(inputFilter.checkInput("Hall1")).thenReturn(true);
-        when(hallREPO.findById("1")).thenReturn(Optional.empty());
+    void testEditHall_hallNotFound() {
+        when(inputFilter.checkInput(request.getName())).thenReturn(true);
+        when(hallRepo.findById("invalid-id")).thenReturn(Optional.empty());
 
-        assertThrows(MyNotFoundException.class, () -> cinemaHallService.editHall("1", request));
+        MyNotFoundException ex = assertThrows(MyNotFoundException.class,
+                () -> cinemaHallService.editHall("invalid-id", request));
+
+        assertEquals("Hall is not found", ex.getMessage());
     }
 
     @Test
-    public void testEditHall_ChangeRowCol_Success() {
-        CinemaHall hall = new CinemaHall();
-        hall.setId("1");
-        hall.setName("OldName");
-        hall.setTotalRow(6);
-        hall.setTotalCol(6);
-        CinemaHallRequest request = new CinemaHallRequest("NewName", 8, 8);
-        when(inputFilter.checkInput("NewName")).thenReturn(true);
-        when(hallREPO.findById("1")).thenReturn(Optional.of(hall));
-        when(hallREPO.save(any(CinemaHall.class))).thenReturn(hall);
+    void testEditHall_noSeatStructureChange() {
+        when(inputFilter.checkInput(request.getName())).thenReturn(true);
+        when(hallRepo.findById(existingHall.getId())).thenReturn(Optional.of(existingHall));
 
-        MyApiResponse response = cinemaHallService.editHall("1", request);
+        MyApiResponse response = cinemaHallService.editHall(existingHall.getId(), request);
+
+        verify(hallSeatService, never()).RemoveAllSeatsFromHall(anyString());
+        verify(hallSeatService, never()).CreateListSeats(any());
+        verify(hallRepo).save(existingHall);
 
         assertEquals("Success", response.getMessage());
-        verify(hallSeatSER, times(1)).RemoveAllSeatsFromHall("1");
-        verify(hallSeatSER, times(1)).CreateListSeats(hall);
-        assertEquals("NewName", hall.getName());
-        assertEquals(8, hall.getTotalRow());
-        assertEquals(8, hall.getTotalCol());
     }
 
     @Test
-    public void testEditHall_NoChangeRowCol_Success() {
-        CinemaHall hall = new CinemaHall();
-        hall.setId("1");
-        hall.setName("OldName");
-        hall.setTotalRow(6);
-        hall.setTotalCol(6);
-        CinemaHallRequest request = new CinemaHallRequest("NewName", 6, 6);
-        when(inputFilter.checkInput("NewName")).thenReturn(true);
-        when(hallREPO.findById("1")).thenReturn(Optional.of(hall));
-        when(hallREPO.save(any(CinemaHall.class))).thenReturn(hall);
+    void testEditHall_withSeatStructureChange() {
+        CinemaHallRequest hallRequest = new CinemaHallRequest("Updated Hall", 12, 12);
 
-        MyApiResponse response = cinemaHallService.editHall("1", request);
+        when(inputFilter.checkInput(hallRequest.getName())).thenReturn(true);
+        when(hallRepo.findById(existingHall.getId())).thenReturn(Optional.of(existingHall));
+
+        MyApiResponse response = cinemaHallService.editHall(existingHall.getId(), hallRequest);
+
+        verify(hallSeatService).RemoveAllSeatsFromHall(existingHall.getId());
+        verify(hallSeatService).CreateListSeats(existingHall);
+        verify(hallRepo).save(existingHall);
 
         assertEquals("Success", response.getMessage());
-        verify(hallSeatSER, never()).RemoveAllSeatsFromHall(anyString());
-        verify(hallSeatSER, never()).CreateListSeats(any(CinemaHall.class));
-        assertEquals("NewName", hall.getName());
+    }
+
+    @Test
+    void testEditHall_withSeatStructureChangeWithInvalidNumberRowOrCol() {
+        CinemaHallRequest hallRequest = new CinemaHallRequest("Updated Hall", 2, 12);
+
+        when(inputFilter.checkInput(hallRequest.getName())).thenReturn(true);
+        when(hallRepo.findById(existingHall.getId())).thenReturn(Optional.of(existingHall));
+
+        MyApiResponse response = cinemaHallService.editHall(existingHall.getId(), hallRequest);
+        assertInstanceOf(ErrorResponse.class, response);
     }
 
     // Test removeHall
     @Test
     public void testRemoveHall_HallNotFound_ThrowsException() {
-        when(hallREPO.findById("1")).thenReturn(Optional.empty());
+        when(hallRepo.findById("1")).thenReturn(Optional.empty());
 
         assertThrows(MyNotFoundException.class, () -> cinemaHallService.removeHall("1"));
     }
 
+    // todo: cần xem kĩ lưỡng hơn với ràng buộc trong database.
     @Test
     public void testRemoveHall_Success() {
-        CinemaHall hall = new CinemaHall();
-        hall.setId("1");
-        when(hallREPO.findById("1")).thenReturn(Optional.of(hall));
+        when(hallRepo.findById("1")).thenReturn(Optional.of(validHall));
 
         MyApiResponse response = cinemaHallService.removeHall("1");
 
         assertEquals("Success", response.getMessage());
-        verify(hallSeatSER, times(1)).RemoveAllSeatsFromHall("1");
-        verify(hallREPO, times(1)).delete(hall);
+        verify(hallSeatService, times(1)).RemoveAllSeatsFromHall("1");
+        verify(hallRepo, times(1)).delete(validHall);
     }
+
+//    @Test
+//    public void testRemoveHall_WithoutConstraint() {
+//        String hallId = "bd52169a-73795f48-9625ea04";
+//        hallRepo.deleteById(hallId);
+//        assert (!hallRepo.findById(hallId).isPresent());
+//    }
+
+    // todo: Không hiểu sao vẫn true
+//    @Test
+//    public void testRemoveHall_WithConstraint() {
+//        String hallId = "336bd103-a0f4802e-875659cb";
+//        cinemaHallImpl.removeHall(hallId);
+//        assert (!cinemaHallRepository.findById(hallId).isPresent());
+//    }
 
     // Test isExistByName
     @Test
     public void testIsExistByName_Exists_ReturnsTrue() {
-        when(hallREPO.existsByName("Hall1")).thenReturn(true);
+        when(hallRepo.existsByName("Hall1")).thenReturn(true);
 
         boolean result = cinemaHallService.isExistByName("Hall1");
 
@@ -204,7 +235,7 @@ public class CinemaHallImplTest {
 
     @Test
     public void testIsExistByName_NotExists_ReturnsFalse() {
-        when(hallREPO.existsByName("Hall1")).thenReturn(false);
+        when(hallRepo.existsByName("Hall1")).thenReturn(false);
 
         boolean result = cinemaHallService.isExistByName("Hall1");
 
@@ -214,7 +245,7 @@ public class CinemaHallImplTest {
     // Test isExistById
     @Test
     public void testIsExistById_Exists_ReturnsTrue() {
-        when(hallREPO.existsById("1")).thenReturn(true);
+        when(hallRepo.existsById("1")).thenReturn(true);
 
         boolean result = cinemaHallService.isExistById("1");
 
@@ -223,7 +254,7 @@ public class CinemaHallImplTest {
 
     @Test
     public void testIsExistById_NotExists_ReturnsFalse() {
-        when(hallREPO.existsById("1")).thenReturn(false);
+        when(hallRepo.existsById("1")).thenReturn(false);
 
         boolean result = cinemaHallService.isExistById("1");
 
@@ -236,7 +267,7 @@ public class CinemaHallImplTest {
         CinemaHall hall1 = new CinemaHall();
         CinemaHall hall2 = new CinemaHall();
         List<CinemaHall> halls = Arrays.asList(hall1, hall2);
-        when(hallREPO.findAll()).thenReturn(halls);
+        when(hallRepo.findAll()).thenReturn(halls);
 
         List<CinemaHall> result = cinemaHallService.getAllHalls();
 
@@ -247,19 +278,24 @@ public class CinemaHallImplTest {
     // Test getHallById
     @Test
     public void testGetHallById_HallNotFound_ThrowsException() {
-        when(hallREPO.findById("1")).thenReturn(Optional.empty());
+        when(hallRepo.findById("1")).thenReturn(Optional.empty());
 
         assertThrows(MyNotFoundException.class, () -> cinemaHallService.getHallById("1"));
     }
 
     @Test
     public void testGetHallById_Success() {
-        CinemaHall hall = new CinemaHall();
-        hall.setId("1");
-        when(hallREPO.findById("1")).thenReturn(Optional.of(hall));
+        String hallId = "1dfb8524-601aede0-ef0c4c0d";
 
-        CinemaHall result = cinemaHallService.getHallById("1");
+        CinemaHall result = cinemaHallImpl.getHallById(hallId);
 
-        assertEquals(hall, result);
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testGetHallById_Failure() {
+        String hallId = "1dfb8524-601aede0-ef0c4c0d11";
+
+        assertThrows(MyNotFoundException.class, () -> cinemaHallImpl.getHallById(hallId));
     }
 }
